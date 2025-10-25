@@ -73,7 +73,7 @@ export default function SuccessScreen({ data, onUploadAnother, onExit }: Success
                   Historia:
                 </p>
                 <p className="text-sm text-warm-600 italic">
-                  "{data.story}"
+                  &ldquo;{data.story}&rdquo;
                 </p>
               </div>
 
@@ -129,7 +129,7 @@ export default function SuccessScreen({ data, onUploadAnother, onExit }: Success
             className="text-center"
           >
             <p className="text-sm text-warm-500 italic">
-              "Donde los recuerdos viven para siempre"
+              &ldquo;Donde los recuerdos viven para siempre&rdquo;
             </p>
           </motion.div>
         </motion.div>
