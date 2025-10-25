@@ -7,8 +7,12 @@ const PROGRAM_ID = new PublicKey('8WHFEQ7BdDhoKhdudmjnGwypsibeJjdRoTPgQg2AFrXH')
 
 // IDL del programa (se generará automáticamente)
 const IDL: Idl = {
-  "version": "0.1.0",
-  "name": "mnemosine",
+  "address": "8WHFEQ7BdDhoKhdudmjnGwypsibeJjdRoTPgQg2AFrXH",
+  "metadata": {
+    "name": "mnemosine",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
   "instructions": [
     {
       "name": "initialize",
@@ -51,29 +55,37 @@ const IDL: Idl = {
   "accounts": [
     {
       "name": "ImageRecord",
-      "discriminator": [110, 78, 93, 173, 155, 4, 147, 45],
-      "data": [
-        {
-          "name": "owner",
-          "type": "pubkey"
-        },
-        {
-          "name": "ipfsHash",
-          "type": "string"
-        },
-        {
-          "name": "imageName",
-          "type": "string"
-        },
-        {
-          "name": "timestamp",
-          "type": "i64"
-        },
-        {
-          "name": "bump",
-          "type": "u8"
-        }
-      ]
+      "discriminator": [110, 78, 93, 173, 155, 4, 147, 45]
+    }
+  ],
+  "types": [
+    {
+      "name": "ImageRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "ipfsHash",
+            "type": "string"
+          },
+          {
+            "name": "imageName",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
     }
   ]
 };
@@ -132,26 +144,9 @@ export const registerImageOnSolana = async (
 // Función para obtener registros de imágenes de un usuario
 export const getUserImageRecords = async (wallet: Wallet): Promise<any[]> => {
   try {
-    const program = getProgram(wallet);
-    const owner = wallet.publicKey;
-    
-      // Obtener todas las cuentas ImageRecord del usuario
-      const imageRecords = await program.account.imageRecord.all([
-        {
-          memcmp: {
-            offset: 8, // Saltar el discriminador
-            bytes: owner.toBase58(),
-          },
-        },
-      ]);
-      
-      return imageRecords.map((record: any) => ({
-        publicKey: record.publicKey.toString(),
-        owner: record.account.owner.toString(),
-        ipfsHash: record.account.ipfsHash,
-        imageName: record.account.imageName,
-        timestamp: record.account.timestamp,
-      }));
+    // TODO: Implementar cuando el IDL esté completamente configurado
+    console.log('getUserImageRecords: Función temporalmente deshabilitada');
+    return [];
   } catch (error) {
     console.error('Error obteniendo registros de imágenes:', error);
     return [];
