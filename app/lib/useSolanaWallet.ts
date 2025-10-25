@@ -96,6 +96,7 @@ export const useSolanaWallet = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingTransactions, setProcessingTransactions] = useState<Set<string>>(new Set());
 
   // Configuración de la conexión
   const getConnection = useCallback((): Connection => {
@@ -214,16 +215,23 @@ export const useSolanaWallet = () => {
       console.log('🔌 Desconectando wallet y programa');
       setWallet(null);
       setProgram(null);
+      // Limpiar todas las transacciones en proceso al desconectar
+      setProcessingTransactions(new Set());
     }
   }, [isConnected, address, getConnection]);
 
   // Función para registrar una imagen en Solana
   const registerImage = useCallback(async (ipfsHash: string, imageName: string): Promise<string> => {
+    // Generar un ID único para esta transacción
+    const transactionId = `${ipfsHash}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     console.log('🎯 registerImage called:', { 
       isConnected, 
       hasProgram: !!program, 
       hasWallet: !!wallet,
       isProcessing,
+      transactionId,
+      processingTransactions: Array.from(processingTransactions),
       programType: program ? typeof program : 'null',
       walletType: wallet ? typeof wallet : 'null'
     });
@@ -233,10 +241,10 @@ export const useSolanaWallet = () => {
       throw new Error('Wallet no conectada');
     }
 
-    // Verificar si ya hay una transacción en proceso
-    if (isProcessing) {
-      console.log('⚠️ Ya hay una transacción en proceso');
-      throw new Error('Ya hay una transacción en proceso. Espera a que termine.');
+    // Verificar si ya hay una transacción en proceso para esta imagen
+    if (processingTransactions.has(ipfsHash)) {
+      console.log('⚠️ Ya hay una transacción en proceso para esta imagen:', ipfsHash);
+      throw new Error('Ya hay una transacción en proceso para esta imagen. Espera a que termine.');
     }
 
     // Temporalmente solo requerimos wallet hasta que el programa se inicialice correctamente
@@ -249,6 +257,13 @@ export const useSolanaWallet = () => {
     setIsLoading(true);
     setIsProcessing(true);
     setError(null);
+    
+    // Agregar esta transacción al conjunto de transacciones en proceso
+    setProcessingTransactions(prev => {
+      const newSet = new Set(prev);
+      newSet.add(ipfsHash);
+      return newSet;
+    });
 
     try {
       console.log('📸 Registrando imagen en Solana:', { ipfsHash, imageName });
@@ -445,6 +460,12 @@ export const useSolanaWallet = () => {
     } finally {
       setIsLoading(false);
       setIsProcessing(false);
+      // Remover esta transacción del conjunto de transacciones en proceso
+      setProcessingTransactions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(ipfsHash);
+        return newSet;
+      });
     }
   }, [isConnected, program, wallet, connection]);
 
@@ -517,6 +538,7 @@ export const useSolanaWallet = () => {
     isLoading,
     isProcessing,
     error,
+    processingTransactions: Array.from(processingTransactions),
     
     // Acciones
     registerImage,

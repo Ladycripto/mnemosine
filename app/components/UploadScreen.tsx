@@ -31,6 +31,7 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
   const [imageIpfsHash, setImageIpfsHash] = useState('')
   const [storyIpfsHash, setStoryIpfsHash] = useState('')
   const [solanaTxHash, setSolanaTxHash] = useState('')
+  const [currentImageHash, setCurrentImageHash] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Hook de Reown
@@ -41,6 +42,7 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
     registerImage, 
     isLoading: isSolanaLoading, 
     isProcessing: isSolanaProcessing,
+    processingTransactions,
     error: solanaError,
     checkTransactionStatus
   } = useSolanaWallet()
@@ -103,10 +105,14 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
 
     setIsSaving(true)
     try {
+      // Calcular hash de la imagen actual
+      const imageHash = await calculateHash(imageFile)
+      setCurrentImageHash(imageHash)
+      
       // Subir imagen a IPFS
       setUploadStatus('Subiendo imagen a IPFS...')
-      const imageHash = await uploadToIPFS(imageFile)
-      setImageIpfsHash(imageHash)
+      const ipfsHash = await uploadToIPFS(imageFile)
+      setImageIpfsHash(ipfsHash)
       
       // Subir historia a IPFS
       setUploadStatus('Subiendo historia a IPFS...')
@@ -115,7 +121,7 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
       
       // Registrar en Solana
       setUploadStatus('Registrando en Solana...')
-      const txHash = await registerImage(imageHash, imageFile.name)
+      const txHash = await registerImage(ipfsHash, imageFile.name)
       setSolanaTxHash(txHash)
       
       // Verificar estado de la transacción después de un breve delay
@@ -155,6 +161,7 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
     } finally {
       setIsSaving(false)
       setUploadStatus('')
+      setCurrentImageHash(null)
     }
   }
 
@@ -378,7 +385,7 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
             </button>
             <button
               onClick={handleSave}
-              disabled={!imageFile || !story.trim() || isSaving || isSolanaProcessing || !isConnected}
+              disabled={!imageFile || !story.trim() || isSaving || isSolanaProcessing || !isConnected || (currentImageHash ? processingTransactions.includes(currentImageHash) : false)}
               className="
                 flex-1 px-6 py-3 bg-warm-800 text-white
                 rounded-lg font-medium
