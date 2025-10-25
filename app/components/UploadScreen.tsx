@@ -3,12 +3,23 @@
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Card from './Card'
+import { uploadToIPFS, uploadTextToIPFS, getIPFSURL } from '../lib/pinata'
+import { useSolanaWallet } from '../lib/useSolanaWallet'
+import { useWallet } from '../contexts/WalletContext'
 
 interface UploadScreenProps {
-  onSuccess: (data: { file: File; preview: string; story: string; hash: string; fileName: string }) => void
+  onSuccess: (data: { 
+    file: File; 
+    preview: string; 
+    story: string; 
+    hash: string; 
+    fileName: string;
+    imageIpfsHash?: string;
+    storyIpfsHash?: string;
+    solanaTxHash?: string;
+  }) => void
   onBack: () => void
 }
-
 export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string>('')
@@ -16,7 +27,22 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
   const [hash, setHash] = useState('')
   const [isCalculating, setIsCalculating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState('')
+  const [imageIpfsHash, setImageIpfsHash] = useState('')
+  const [storyIpfsHash, setStoryIpfsHash] = useState('')
+  const [solanaTxHash, setSolanaTxHash] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Hook de wallet
+  const { isConnected, address } = useWallet()
+  
+  // Hook de Solana
+  const { 
+    registerImage, 
+    isLoading: isSolanaLoading, 
+    error: solanaError 
+  } = useSolanaWallet()
+
 
   // Función para calcular hash SHA-256
   const calculateHash = async (file: File): Promise<string> => {
@@ -67,18 +93,49 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
       return
     }
 
+    // Verificar conexión de wallet
+    if (!isConnected) {
+      alert('Por favor, conecta tu wallet primero.')
+      return
+    }
+
     setIsSaving(true)
-    
-    // Simular tiempo de guardado
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    onSuccess({
-      file: imageFile,
-      preview: imagePreview,
-      story: story.trim(),
-      hash,
-      fileName: imageFile.name
-    })
+    try {
+      // Subir imagen a IPFS
+      setUploadStatus('Subiendo imagen a IPFS...')
+      const imageHash = await uploadToIPFS(imageFile)
+      setImageIpfsHash(imageHash)
+      
+      // Subir historia a IPFS
+      setUploadStatus('Subiendo historia a IPFS...')
+      const storyHash = await uploadTextToIPFS(story.trim())
+      setStoryIpfsHash(storyHash)
+      
+      // Registrar en Solana
+      setUploadStatus('Registrando en Solana...')
+      const txHash = await registerImage(imageHash, imageFile.name)
+      setSolanaTxHash(txHash)
+      
+      setUploadStatus('¡Recuerdo guardado exitosamente!')
+      
+      onSuccess({
+        file: imageFile,
+        preview: imagePreview,
+        story: story.trim(),
+        hash,
+        fileName: imageFile.name,
+        imageIpfsHash: imageHash,
+        storyIpfsHash: storyHash,
+        solanaTxHash: txHash
+      })
+    } catch (error) {
+      console.error('Error guardando:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+      alert(`Error al guardar: ${errorMessage}`)
+    } finally {
+      setIsSaving(false)
+      setUploadStatus('')
+    }
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -109,7 +166,29 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
           transition={{ duration: 0.6 }}
           className="space-y-6"
         >
-          {/* Estado de la wallet (removido para UI sin wallet) */}
+          {/* Estado de la wallet */}
+          <div className="bg-warm-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-warm-700">
+                  Estado de la Wallet:
+                </p>
+                <p className="text-sm text-warm-600">
+                  {isConnected ? `Conectada: ${address?.slice(0, 8)}...${address?.slice(-8)}` : 'No conectada'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-warm-500">
+                  Usa el botón de wallet en la barra de navegación
+                </p>
+              </div>
+            </div>
+            {solanaError && (
+              <p className="text-xs text-red-600 mt-2">
+                Error: {solanaError}
+              </p>
+            )}
+          </div>
           
           {/* Título */}
           <div className="text-center">
@@ -220,6 +299,50 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
               </p>
             </motion.div>
           )}
+          {/* IPFS Hashes display */}
+          {(imageIpfsHash || storyIpfsHash) && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-blue-50 p-4 rounded-lg space-y-2"
+            >
+              <p className="text-sm font-medium text-blue-700 mb-2">
+                Hashes IPFS:
+              </p>
+              {imageIpfsHash && (
+                <div>
+                  <p className="text-xs font-medium text-blue-600">Imagen:</p>
+                  <p className="text-xs font-mono text-blue-500 break-all">
+                    {imageIpfsHash}
+                  </p>
+                </div>
+              )}
+              {storyIpfsHash && (
+                <div>
+                  <p className="text-xs font-medium text-blue-600">Historia:</p>
+                  <p className="text-xs font-mono text-blue-500 break-all">
+                    {storyIpfsHash}
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Solana Transaction Hash display */}
+          {solanaTxHash && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-purple-50 p-4 rounded-lg"
+            >
+              <p className="text-sm font-medium text-purple-700 mb-1">
+                Transacción Solana:
+              </p>
+              <p className="text-xs font-mono text-purple-600 break-all">
+                {solanaTxHash}
+              </p>
+            </motion.div>
+          )}
 
           {/* Botones */}
           <div className="flex space-x-4">
@@ -235,7 +358,7 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
             </button>
             <button
               onClick={handleSave}
-              disabled={!imageFile || !story.trim() || isSaving}
+              disabled={!imageFile || !story.trim() || isSaving || !isConnected}
               className="
                 flex-1 px-6 py-3 bg-warm-800 text-white
                 rounded-lg font-medium
@@ -247,10 +370,12 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
               {isSaving ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Guardando...</span>
+                  <span>{uploadStatus || 'Guardando...'}</span>
                 </>
+              ) : !isConnected ? (
+                'Conecta tu wallet primero'
               ) : (
-                'Guardar Recuerdo (demo)'
+                'Guardar en Blockchain'
               )}
             </button>
           </div>

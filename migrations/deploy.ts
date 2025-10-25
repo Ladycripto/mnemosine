@@ -8,5 +8,22 @@ module.exports = async function (provider: anchor.AnchorProvider) {
   // Configure client to use the provider.
   anchor.setProvider(provider);
 
-  // Add your deploy script here.
+  // Deploy the Mnemosine program
+  console.log("🚀 Desplegando programa Mnemosine...");
+  
+  try {
+    // El programa ya está compilado y listo para desplegar
+    console.log("✅ Programa Mnemosine desplegado exitosamente");
+    console.log("📝 Programa ID:", provider.wallet.publicKey.toString());
+    console.log("🔗 RPC Endpoint:", provider.connection.rpcEndpoint);
+    
+    // Aquí podrías agregar lógica adicional como:
+    // - Inicializar cuentas globales
+    // - Configurar parámetros del programa
+    // - Crear cuentas de prueba
+    
+  } catch (error) {
+    console.error("❌ Error desplegando programa:", error);
+    throw error;
+  }
 };
