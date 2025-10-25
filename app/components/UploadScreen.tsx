@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Card from './Card'
 import { uploadToIPFS, uploadTextToIPFS, getIPFSURL } from '../lib/pinata'
 import { useSolanaWallet } from '../lib/useSolanaWallet'
-import { useWallet } from '../contexts/WalletContext'
+import { useAppKitAccount } from '@reown/appkit/react'
 
 interface UploadScreenProps {
   onSuccess: (data: { 
@@ -33,14 +33,16 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
   const [solanaTxHash, setSolanaTxHash] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Hook de wallet
-  const { isConnected, address } = useWallet()
+  // Hook de Reown
+  const { address, isConnected } = useAppKitAccount()
   
   // Hook de Solana
   const { 
     registerImage, 
     isLoading: isSolanaLoading, 
-    error: solanaError 
+    isProcessing: isSolanaProcessing,
+    error: solanaError,
+    checkTransactionStatus
   } = useSolanaWallet()
 
 
@@ -115,6 +117,24 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
       setUploadStatus('Registrando en Solana...')
       const txHash = await registerImage(imageHash, imageFile.name)
       setSolanaTxHash(txHash)
+      
+      // Verificar estado de la transacción después de un breve delay
+      setTimeout(async () => {
+        try {
+          const status = await checkTransactionStatus(txHash)
+          console.log('🔍 Estado de transacción verificado:', status)
+          
+          if (status.status === 'success') {
+            setUploadStatus('¡Recuerdo guardado exitosamente en blockchain!')
+          } else if (status.status === 'failed') {
+            setUploadStatus('⚠️ Transacción falló, pero la imagen se subió a IPFS')
+          } else {
+            setUploadStatus('⏳ Transacción pendiente - verificar en explorer')
+          }
+        } catch (error) {
+          console.log('🔍 No se pudo verificar el estado de la transacción')
+        }
+      }, 2000)
       
       setUploadStatus('¡Recuerdo guardado exitosamente!')
       
@@ -358,7 +378,7 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
             </button>
             <button
               onClick={handleSave}
-              disabled={!imageFile || !story.trim() || isSaving || !isConnected}
+              disabled={!imageFile || !story.trim() || isSaving || isSolanaProcessing || !isConnected}
               className="
                 flex-1 px-6 py-3 bg-warm-800 text-white
                 rounded-lg font-medium
@@ -367,7 +387,7 @@ export default function UploadScreen({ onSuccess, onBack }: UploadScreenProps) {
                 flex items-center justify-center space-x-2
               "
             >
-              {isSaving ? (
+              {isSaving || isSolanaProcessing ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>{uploadStatus || 'Guardando...'}</span>

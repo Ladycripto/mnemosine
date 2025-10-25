@@ -14,7 +14,7 @@ pub mod mnemosine {
     pub fn register_image(ctx: Context<RegisterImage>, ipfs_hash: String, image_name: String) -> Result<()> {
         let image_record = &mut ctx.accounts.image_record;
         image_record.owner = ctx.accounts.owner.key();
-        image_record.ipfs_hash = ipfs_hash;
+        image_record.ipfs_hash = ipfs_hash.clone();
         image_record.image_name = image_name;
         image_record.timestamp = Clock::get()?.unix_timestamp;
         image_record.bump = ctx.bumps.image_record;
@@ -34,7 +34,7 @@ pub struct RegisterImage<'info> {
         init,
         payer = owner,
         space = 8 + 32 + 64 + 64 + 8 + 1, // discriminator + owner + ipfs_hash + image_name + timestamp + bump
-        seeds = [b"image_record", owner.key().as_ref(), ipfs_hash.as_bytes()],
+        seeds = [b"image_record", owner.key().as_ref(), &ipfs_hash.as_bytes()[..8]],
         bump
     )]
     pub image_record: Account<'info, ImageRecord>,

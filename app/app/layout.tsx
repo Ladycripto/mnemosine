@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { ReownProvider } from '../components/ReownProvider'
 import { WalletButton } from '../components/WalletButton'
-import { WalletProvider } from '../contexts/WalletContext'
 
 
 export const metadata: Metadata = {
@@ -19,8 +18,7 @@ export default function RootLayout({
     <html lang="es">
       <body className="antialiased">
         <ReownProvider>
-          <WalletProvider>
-            <nav className="bg-white shadow-lg border-b border-gray-200">
+          <nav className="bg-white shadow-lg border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               {/* Logo */}
@@ -114,10 +112,9 @@ export default function RootLayout({
           </div>
           </nav>
           
-            <main className="min-h-screen">
-              {children}
-            </main>
-          </WalletProvider>
+          <main className="min-h-screen">
+            {children}
+          </main>
         </ReownProvider>
       </body>
     </html>
